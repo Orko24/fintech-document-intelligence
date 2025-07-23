@@ -1,0 +1,281 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # API Gateway
+  - job_name: 'api-gateway'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - fintech-platform
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        regex: api-gateway
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_container_port_number]
+        regex: 9090
+        action: keep
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name, __meta_kubernetes_pod_container_port_number]
+        action: replace
+        regex: (.+);(.+);(.+)
+        target_label: __metrics_path__
+        replacement: /metrics
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name]
+        action: replace
+        regex: (.+);(.+)
+        target_label: __address__
+        replacement: $2.$1.svc.cluster.local:9090
+
+  # ML Service
+  - job_name: 'ml-service'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - fintech-platform
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        regex: ml-service
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_container_port_number]
+        regex: 9091
+        action: keep
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name, __meta_kubernetes_pod_container_port_number]
+        action: replace
+        regex: (.+);(.+);(.+)
+        target_label: __metrics_path__
+        replacement: /metrics
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name]
+        action: replace
+        regex: (.+);(.+)
+        target_label: __address__
+        replacement: $2.$1.svc.cluster.local:9091
+
+  # Go Service
+  - job_name: 'go-service'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - fintech-platform
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        regex: go-service
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_container_port_number]
+        regex: 9093
+        action: keep
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name, __meta_kubernetes_pod_container_port_number]
+        action: replace
+        regex: (.+);(.+);(.+)
+        target_label: __metrics_path__
+        replacement: /metrics
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name]
+        action: replace
+        regex: (.+);(.+)
+        target_label: __address__
+        replacement: $2.$1.svc.cluster.local:9093
+
+  # Java Service
+  - job_name: 'java-service'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - fintech-platform
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        regex: java-service
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_container_port_number]
+        regex: 9094
+        action: keep
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name, __meta_kubernetes_pod_container_port_number]
+        action: replace
+        regex: (.+);(.+);(.+)
+        target_label: __metrics_path__
+        replacement: /actuator/prometheus
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name]
+        action: replace
+        regex: (.+);(.+)
+        target_label: __address__
+        replacement: $2.$1.svc.cluster.local:9094
+
+  # OCR Service
+  - job_name: 'ocr-service'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - fintech-platform
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        regex: ocr-service
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_container_port_number]
+        regex: 9092
+        action: keep
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name, __meta_kubernetes_pod_container_port_number]
+        action: replace
+        regex: (.+);(.+);(.+)
+        target_label: __metrics_path__
+        replacement: /metrics
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name]
+        action: replace
+        regex: (.+);(.+)
+        target_label: __address__
+        replacement: $2.$1.svc.cluster.local:9092
+
+  # PostgreSQL
+  - job_name: 'postgres'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - fintech-platform
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        regex: postgres
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_container_port_number]
+        regex: 5432
+        action: keep
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name, __meta_kubernetes_pod_container_port_number]
+        action: replace
+        regex: (.+);(.+);(.+)
+        target_label: __metrics_path__
+        replacement: /metrics
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name]
+        action: replace
+        regex: (.+);(.+)
+        target_label: __address__
+        replacement: $2.$1.svc.cluster.local:5432
+
+  # Redis
+  - job_name: 'redis'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - fintech-platform
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        regex: redis
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_container_port_number]
+        regex: 6379
+        action: keep
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name, __meta_kubernetes_pod_container_port_number]
+        action: replace
+        regex: (.+);(.+);(.+)
+        target_label: __metrics_path__
+        replacement: /metrics
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name]
+        action: replace
+        regex: (.+);(.+)
+        target_label: __address__
+        replacement: $2.$1.svc.cluster.local:6379
+
+  # Kafka
+  - job_name: 'kafka'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - fintech-platform
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        regex: kafka
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_container_port_number]
+        regex: 9092
+        action: keep
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name, __meta_kubernetes_pod_container_port_number]
+        action: replace
+        regex: (.+);(.+);(.+)
+        target_label: __metrics_path__
+        replacement: /metrics
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name]
+        action: replace
+        regex: (.+);(.+)
+        target_label: __address__
+        replacement: $2.$1.svc.cluster.local:9092
+
+  # Node Exporter (for system metrics)
+  - job_name: 'node-exporter'
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_node_name]
+        action: replace
+        target_label: node
+      - source_labels: [__meta_kubernetes_node_address_InternalIP]
+        action: replace
+        target_label: __address__
+        replacement: $1:9100
+
+  # Kubernetes API Server
+  - job_name: 'kubernetes-apiservers'
+    kubernetes_sd_configs:
+      - role: endpoints
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      insecure_skip_verify: true
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: default;kubernetes;https
+
+  # Kubernetes Nodes
+  - job_name: 'kubernetes-nodes'
+    kubernetes_sd_configs:
+      - role: node
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      insecure_skip_verify: true
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_node_name]
+        action: replace
+        target_label: node
+      - source_labels: [__meta_kubernetes_node_address_InternalIP]
+        action: replace
+        target_label: __address__
+        replacement: $1:10250
+
+  # Kubernetes Pods
+  - job_name: 'kubernetes-pods'
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__ 

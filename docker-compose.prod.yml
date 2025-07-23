@@ -1,0 +1,338 @@
+version: '3.8'
+
+services:
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    image: fintech-ai-platform/api-gateway:latest
+    container_name: api-gateway-prod
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - API_KEY=${API_KEY}
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - fintech-network
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+  # ML Service
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    image: fintech-ai-platform/ml-service:latest
+    container_name: ml-service-prod
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    environment:
+      - ENVIRONMENT=production
+      - MODEL_PATH=/app/models
+      - GPU_ENABLED=true
+      - API_KEY=${ML_API_KEY}
+    volumes:
+      - ml-models:/app/models
+    networks:
+      - fintech-network
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+
+  # Go Orchestrator Service
+  go-service:
+    build:
+      context: ./go-service
+      dockerfile: Dockerfile
+    image: fintech-ai-platform/go-service:latest
+    container_name: go-service-prod
+    restart: unless-stopped
+    ports:
+      - "8002:8080"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - KAFKA_BROKERS=${KAFKA_BROKERS}
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    networks:
+      - fintech-network
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  # Java Kafka Streams Service
+  java-service:
+    build:
+      context: ./java-service
+      dockerfile: Dockerfile
+    image: fintech-ai-platform/java-service:latest
+    container_name: java-service-prod
+    restart: unless-stopped
+    ports:
+      - "8003:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=production
+      - KAFKA_BROKERS=${KAFKA_BROKERS}
+      - DATABASE_URL=${DATABASE_URL}
+    depends_on:
+      - kafka
+      - postgres
+    networks:
+      - fintech-network
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2G
+
+  # OCR Service
+  ocr-service:
+    build:
+      context: ./ocr-service
+      dockerfile: Dockerfile
+    image: fintech-ai-platform/ocr-service:latest
+    container_name: ocr-service-prod
+    restart: unless-stopped
+    ports:
+      - "8004:8080"
+    environment:
+      - ENVIRONMENT=production
+      - MODEL_PATH=/app/models
+    volumes:
+      - ocr-models:/app/models
+    networks:
+      - fintech-network
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: fintech-ai-platform/frontend:latest
+    container_name: frontend-prod
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=${API_URL}
+      - REACT_APP_WS_URL=${WS_URL}
+    networks:
+      - fintech-network
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-prod
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./data/schemas/postgresql:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - fintech-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: redis-prod
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - fintech-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+
+  # Kafka
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka-prod
+    restart: unless-stopped
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+    ports:
+      - "29092:29092"
+    depends_on:
+      - zookeeper
+    networks:
+      - fintech-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+
+  # Zookeeper
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zookeeper-prod
+    restart: unless-stopped
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=2181
+      - ZOOKEEPER_TICK_TIME=2000
+    networks:
+      - fintech-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+
+  # Nginx Load Balancer
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - api-gateway
+      - frontend
+    networks:
+      - fintech-network
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-prod
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - fintech-network
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-prod
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana:/etc/grafana/provisioning
+    networks:
+      - fintech-network
+
+  # Alertmanager
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager-prod
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - fintech-network
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  ml-models:
+    driver: local
+  ocr-models:
+    driver: local
+
+networks:
+  fintech-network:
+    driver: bridge 

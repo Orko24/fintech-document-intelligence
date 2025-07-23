@@ -1,0 +1,125 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-service
+  namespace: fintech-platform
+  labels:
+    app: ml-service
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ml-service
+  template:
+    metadata:
+      labels:
+        app: ml-service
+        version: v1
+    spec:
+      containers:
+      - name: ml-service
+        image: fintech-ai-platform/ml-service:latest
+        ports:
+        - containerPort: 8001
+          name: http
+        - containerPort: 9091
+          name: metrics
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: ml-service-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: ml-service-secrets
+              key: redis-url
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ml-service-secrets
+              key: openai-api-key
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: ml-service-secrets
+              key: jwt-secret
+        - name: DEBUG
+          value: "false"
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: "8001"
+        - name: PROMETHEUS_PORT
+          value: "9091"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8001
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: models-volume
+          mountPath: /app/models
+      volumes:
+      - name: models-volume
+        persistentVolumeClaim:
+          claimName: ml-service-models-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-service
+  namespace: fintech-platform
+  labels:
+    app: ml-service
+spec:
+  selector:
+    app: ml-service
+  ports:
+  - name: http
+    port: 8001
+    targetPort: 8001
+  - name: metrics
+    port: 9091
+    targetPort: 9091
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ml-service-models-pvc
+  namespace: fintech-platform
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ml-service-secrets
+  namespace: fintech-platform
+type: Opaque
+data:
+  database-url: cG9zdGdyZXNxbDovL21sX3VzZXI6bWxfcGFzc3dvcmRAcG9zdGdyZXM6NTQzMi9maW50ZWNoX21s
+  redis-url: cmVkaXM6Ly9yZWRpczo2Mzc5LzE=
+  openai-api-key: <base64-encoded-openai-key>
+  jwt-secret: <base64-encoded-jwt-secret> 

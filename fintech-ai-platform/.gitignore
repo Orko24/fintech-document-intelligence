@@ -1,0 +1,89 @@
+﻿# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Build outputs
+dist/
+build/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Docker
+.dockerignore
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Go
+*.test
+*.prof
+go.sum
+
+# Java
+target/
+*.jar
+*.war
+*.ear
+*.class
+
+# C++
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.exe
+
+# ML Models (large files)
+*.pkl
+*.joblib
+*.h5
+*.pb
+models/large_models/
+
+# Data files
+*.csv
+*.json
+*.parquet
+data/large_datasets/
+
+# Temporary files
+tmp/
+temp/
+.cache/

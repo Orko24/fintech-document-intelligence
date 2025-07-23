@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ocr-service
+  namespace: fintech-platform
+  labels:
+    app: ocr-service
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ocr-service
+  template:
+    metadata:
+      labels:
+        app: ocr-service
+        version: v1
+    spec:
+      containers:
+      - name: ocr-service
+        image: fintech-ai-platform/ocr-service:latest
+        ports:
+        - containerPort: 8002
+          name: http
+        - containerPort: 9092
+          name: metrics
+        env:
+        - name: HOST
+          value: "0.0.0.0"
+        - name: PORT
+          value: "8002"
+        - name: METRICS_PORT
+          value: "9092"
+        - name: DEBUG
+          value: "false"
+        - name: MAX_WORKERS
+          value: "4"
+        - name: MODEL_PATH
+          value: "/app/models"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8002
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8002
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        volumeMounts:
+        - name: models-volume
+          mountPath: /app/models
+        - name: temp-volume
+          mountPath: /tmp
+      volumes:
+      - name: models-volume
+        persistentVolumeClaim:
+          claimName: ocr-service-models-pvc
+      - name: temp-volume
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ocr-service
+  namespace: fintech-platform
+  labels:
+    app: ocr-service
+spec:
+  selector:
+    app: ocr-service
+  ports:
+  - name: http
+    port: 8002
+    targetPort: 8002
+  - name: metrics
+    port: 9092
+    targetPort: 9092
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ocr-service-models-pvc
+  namespace: fintech-platform
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi 

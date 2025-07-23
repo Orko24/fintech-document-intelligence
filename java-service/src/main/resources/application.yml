@@ -1,0 +1,70 @@
+spring:
+  application:
+    name: kafka-streams-service
+  
+  kafka:
+    bootstrap-servers: kafka:9092
+    consumer:
+      group-id: kafka-streams-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    streams:
+      application-id: kafka-streams-service
+      properties:
+        processing.guarantee: exactly_once_v2
+        replication.factor: 1
+        num.stream.threads: 3
+        commit.interval.ms: 1000
+
+# Kafka topics configuration
+kafka:
+  topics:
+    transactions:
+      input: transactions-input
+      processed: transactions-processed
+      suspicious: transactions-suspicious
+      aggregated: transactions-aggregated
+      alerts: transaction-alerts
+
+# Server configuration
+server:
+  port: 8004
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Logging configuration
+logging:
+  level:
+    com.fintech.kafkastreams: INFO
+    org.apache.kafka: WARN
+    org.springframework.kafka: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Application specific configuration
+app:
+  processing:
+    batch-size: 100
+    timeout-ms: 5000
+    retry-attempts: 3
+  monitoring:
+    enabled: true
+    metrics-interval: 30s 
